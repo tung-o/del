@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>เกมจับคู่วิทยาการคำนวณ ป.1 (Grade 1 CS Memory Match)</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Prompt for modern kid-friendly Thai typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:ital,wght@0,300;0,400;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+  <!-- Canvas Confetti CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+  <style>
+    * {
+      font-family: 'Prompt', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 50%, #F5F3FF 100%);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* 3D Card Flip Mechanics */
+    .perspective-1000 {
+      perspective: 1000px;
+    }
+
+    .card-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      text-align: center;
+      transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+      transform-style: preserve-3d;
+      cursor: pointer;
+    }
+
+    .card-inner.is-flipped {
+      transform: rotateY(180deg);
+    }
+
+    .card-inner.is-matched {
+      transform: rotateY(180deg);
+      animation: pulse-matched 0.6s ease-in-out;
+    }
+
+    .card-face {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      border-radius: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 20px -4px rgba(79, 70, 229, 0.18), 0 4px 10px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Card Back (Faced Down) */
+    .card-back {
+      background: linear-gradient(145deg, #6366F1 0%, #4F46E5 60%, #4338CA 100%);
+      border: 3px solid #818CF8;
+      color: white;
+    }
+
+    /* Card Front (Revealed Concept) */
+    .card-front {
+      transform: rotateY(180deg);
+      background: white;
+      border: 3px solid #E0E7FF;
+    }
+
+    .card-front.matched-border {
+      border: 3.5px solid #10B981;
+      background: linear-gradient(180deg, #FFFFFF 65%, #ECFDF5 100%);
+    }
+
+    @keyframes pulse-matched {
+      0% { transform: rotateY(180deg) scale(1); }
+      50% { transform: rotateY(180deg) scale(1.08); }
+      100% { transform: rotateY(180deg) scale(1); }
+    }
+
+    @keyframes shake-mismatch {
+      0%, 100% { transform: rotateY(180deg) translateX(0); }
+      20%, 60% { transform: rotateY(180deg) translateX(-6px); }
+      40%, 80% { transform: rotateY(180deg) translateX(6px); }
+    }
+
+    .shake {
+      animation: shake-mismatch 0.4s ease-in-out;
+    }
+
+    /* Floating decoration background blobs */
+    .bg-blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(50px);
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.5;
+    }
+  </style>
+</head>
+<body class="relative flex flex-col justify-between p-3 sm:p-6 min-h-screen text-slate-800">
+
+  <div class="bg-blob w-72 h-72 bg-indigo-300 top-0 left-[-50px]"></div>
+  <div class="bg-blob w-80 h-80 bg-pink-200 bottom-10 right-[-60px]"></div>
+  <div class="bg-blob w-64 h-64 bg-amber-200 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-30"></div>
+
+  <main class="relative z-10 max-w-4xl w-full mx-auto flex flex-col items-center flex-grow">
+    
+    <!-- Header Section -->
+    <header class="w-full text-center mb-3 sm:mb-4">
+      <div class="inline-flex items-center gap-2 bg-white/80 backdrop-blur-md px-4 py-1.5 rounded-full shadow-sm border border-indigo-100 mb-2">
+        <span class="text-xl">💻</span>
+        <span class="text-xs sm:text-sm font-bold text-indigo-700 uppercase tracking-wide">วิทยาการคำนวณ ป.1 • Grade 1 CS</span>
+      </div>
+      <h1 class="text-2xl sm:text-4xl font-extrabold text-indigo-950 tracking-tight flex items-center justify-center gap-2">
+        <span>🎮</span> เกมจับคู่ความจำอัจฉริยะ
+      </h1>
+      <p class="text-xs sm:text-sm text-slate-600 mt-0.5">เปิดการ์ดเพื่อค้นหาคู่คำศัพท์โค้ดดิ้งที่ตรงกันนะคนเก่ง!</p>
+    </header>
+
+    <!-- Difficulty & Audio Controls -->
+    <div class="w-full flex flex-wrap items-center justify-between gap-2.5 bg-white/90 backdrop-blur-md p-2.5 sm:p-3 rounded-2xl shadow-sm border border-indigo-50 mb-3 sm:mb-4">
+      <!-- Level Tabs -->
+      <div class="flex items-center gap-1.5 bg-slate-100/90 p-1 rounded-xl">
+        <button id="lvl-1" onclick="selectLevel(1)" class="lvl-btn px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all duration-200 bg-white text-indigo-700 shadow-sm">
+          🌱 ง่าย (4 คู่)
+        </button>
+        <button id="lvl-2" onclick="selectLevel(2)" class="lvl-btn px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold text-slate-600 hover:text-indigo-600 transition-all duration-200">
+          ⭐ ปานกลาง (6 คู่)
+        </button>
+        <button id="lvl-3" onclick="selectLevel(3)" class="lvl-btn px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold text-slate-600 hover:text-indigo-600 transition-all duration-200">
+          🔥 ท้าทาย (8 คู่)
+        </button>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-2 ml-auto">
+        <button id="soundToggle" onclick="toggleAudio()" class="w-10 h-10 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-lg shadow-sm transition-all" title="เปิด/ปิดเสียง">
+          🔊
+        </button>
+        <button onclick="resetGame()" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-md shadow-indigo-200 transition-all">
+          <svg class="w-4 h-4 fill-current animate-none" viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+          เริ่มใหม่
+        </button>
+      </div>
+    </div>
+
+    <!-- Analytics Dashboard Bar -->
+    <div class="w-full grid grid-cols-4 gap-2 sm:gap-3 mb-4">
+      <!-- Star Rating -->
+      <div class="bg-white/95 rounded-2xl p-2.5 sm:p-3 text-center shadow-sm border border-indigo-50 flex flex-col justify-center items-center">
+        <div class="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider mb-0.5">คะแนนดาว</div>
+        <div id="starContainer" class="flex items-center gap-0.5 text-base sm:text-xl text-amber-400">
+          <span>⭐</span><span>⭐</span><span>⭐</span>
+        </div>
+      </div>
+
+      <!-- Moves / Flips Counter -->
+      <div class="bg-white/95 rounded-2xl p-2.5 sm:p-3 text-center shadow-sm border border-indigo-50 flex flex-col justify-center items-center">
+        <div class="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider mb-0.5">เปิดการ์ด</div>
+        <div class="text-base sm:text-2xl font-black text-indigo-900 leading-tight">
+          <span id="flipCount">0</span> <span class="text-xs font-normal text-slate-500">ครั้ง</span>
+        </div>
+      </div>
+
+      <!-- Pairs Found Tracker -->
+      <div class="bg-white/95 rounded-2xl p-2.5 sm:p-3 text-center shadow-sm border border-indigo-50 flex flex-col justify-center items-center">
+        <div class="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider mb-0.5">พบคู่แล้ว</div>
+        <div class="text-base sm:text-2xl font-black text-emerald-600 leading-tight">
+          <span id="pairsFound">0</span><span class="text-xs font-bold text-slate-400">/</span><span id="totalPairs" class="text-xs font-semibold text-slate-500">4</span>
+        </div>
+      </div>
+
+      <!-- Timer -->
+      <div class="bg-white/95 rounded-2xl p-2.5 sm:p-3 text-center shadow-sm border border-indigo-50 flex flex-col justify-center items-center">
+        <div class="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider mb-0.5">เวลา</div>
+        <div id="timerDisplay" class="text-base sm:text-2xl font-black text-indigo-900 leading-tight font-mono">
+          00:00
+        </div>
+      </div>
+    </div>
+
+    <!-- Card Game Grid Container -->
+    <div id="gameBoard" class="w-full flex-grow grid gap-2.5 sm:gap-4 justify-center items-stretch py-2 min-h-[360px] sm:min-h-[460px]">
+      <!-- Dynamically generated cards will populate here -->
+    </div>
+
+  </main>
+
+  <!-- Educational Concept Footer -->
+  <footer class="w-full max-w-4xl mx-auto text-center mt-3 pt-2 text-xs text-indigo-950/60 font-medium">
+    💡 เรียนรู้วิทยาการคำนวณและขั้นตอนวิธี (Algorithm & Computational Thinking) สำหรับเด็กปฐมวัย - ป.1
+  </footer>
+
+  <!-- Victory Modal -->
+  <div id="victoryModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity duration-300">
+    <div class="bg-white w-full max-w-md rounded-3xl p-6 sm:p-8 text-center shadow-2xl border-4 border-indigo-100 transform scale-90 transition-transform duration-300">
+      
+      <!-- Trophy Icon Animation -->
+      <div class="relative w-20 h-20 mx-auto mb-3 bg-amber-100 rounded-full flex items-center justify-center shadow-inner">
+        <span class="text-4xl animate-bounce">🏆</span>
+        <div class="absolute -top-1 -right-1 text-2xl animate-spin" style="animation-duration: 4s;">✨</div>
+      </div>
+
+      <h2 class="text-2xl sm:text-3xl font-black text-indigo-950 mb-1">ยอดเยี่ยมมากคนเก่ง! 🎉</h2>
+      <p id="victorySubtitle" class="text-sm text-slate-600 mb-4">คุณผ่านด่านระดับง่ายเรียบร้อยแล้ว!</p>
+
+      <!-- Victory Stars -->
+      <div id="modalStars" class="flex justify-center items-center gap-1.5 text-3xl sm:text-4xl mb-6 text-amber-400">
+        <span>⭐</span><span>⭐</span><span>⭐</span>
+      </div>
+
+      <!-- Stats Summary Grid -->
+      <div class="grid grid-cols-2 gap-3 bg-indigo-50/70 p-4 rounded-2xl mb-6 text-left border border-indigo-100/80">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-xl shadow-sm">⏱️</div>
+          <div>
+            <div class="text-[11px] font-semibold text-slate-500">เวลาที่ใช้</div>
+            <div id="modalTime" class="text-base sm:text-lg font-bold text-indigo-950 font-mono">00:24</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-xl shadow-sm">🃏</div>
+          <div>
+            <div class="text-[11px] font-semibold text-slate-500">จำนวนที่เปิด</div>
+            <div id="modalFlips" class="text-base sm:text-lg font-bold text-indigo-950">12 ครั้ง</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-col sm:flex-row gap-2.5">
+        <button onclick="restartLevelFromModal()" class="flex-1 py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-all active:scale-95">
+          🔄 เล่นรอบนี้อีกครั้ง
+        </button>
+        <button id="nextLevelBtn" onclick="nextLevelFromModal()" class="flex-1 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-lg shadow-indigo-300 transition-all active:scale-95">
+          🌟 ด่านต่อไป →
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // Grade 1 Computer Science curriculum concepts with child-friendly Thai vocabulary & visual cues
+    const CS_CONCEPTS = [
+      {
+        id: "forward",
+        emoji: "⬆️",
+        thai: "เดินหน้า",
+        en: "Move Forward",
+        color: "from-blue-500 to-indigo-600",
+        badge: "คำสั่งลำดับ"
+      },
+      {
+        id: "turn_left",
+        emoji: "↩️",
+        thai: "เลี้ยวซ้าย",
+        en: "Turn Left",
+        color: "from-emerald-500 to-teal-600",
+        badge: "ทิศทาง"
+      },
+      {
+        id: "turn_right",
+        emoji: "↪️",
+        thai: "เลี้ยวขวา",
+        en: "Turn Right",
+        color: "from-amber-500 to-orange-600",
+        badge: "ทิศทาง"
+      },
+      {
+        id: "bug",
+        emoji: "🐛",
+        thai: "บั๊ก (ข้อผิดพลาด)",
+        en: "Bug",
+        color: "from-rose-500 to-red-600",
+        badge: "แก้ปัญหา"
+      },
+      {
+        id: "robot",
+        emoji: "🤖",
+        thai: "หุ่นยนต์",
+        en: "Robot",
+        color: "from-purple-500 to-fuchsia-600",
+        badge: "เทคโนโลยี"
+      },
+      {
+        id: "classify",
+        emoji: "🗂️",
+        thai: "จัดหมวดหมู่",
+        en: "Classification",
+        color: "from-cyan-500 to-sky-600",
+        badge: "การคิดเชิงคำนวณ"
+      },
+      {
+        id: "pixel",
+        emoji: "🟩",
+        thai: "พิกเซล (จุดสี)",
+        en: "Pixel",
+        color: "from-pink-500 to-rose-600",
+        badge: "ภาพดิจิทัล"
+      },
+      {
+        id: "goal",
+        emoji: "🏁",
+        thai: "จุดหมาย",
+        en: "Goal / Target",
+        color: "from-yellow-400 to-amber-500",
+        badge: "เป้าหมาย"
+      }
+    ];
+
+    // Native Web Audio API Synthesizer - Zero external audio file dependencies
+    class SoundSynth {
+      constructor() {
+        this.ctx = null;
+        this.isMuted = false;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playFlip() {
+        if (this.isMuted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = "sine";
+        const now = this.ctx.currentTime;
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.exponentialRampToValueAtTime(560, now + 0.08);
+
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.09);
+      }
+
+      playMatch() {
+        if (this.isMuted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        // Joyful 3-tone arpeggio (C5 -> E5 -> G5)
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        notes.forEach((freq, index) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          const now = this.ctx.currentTime + index * 0.09;
+
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(freq, now);
+
+          gain.gain.setValueAtTime(0.22, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start(now);
+          osc.stop(now + 0.26);
+        });
+      }
+
+      playMismatch() {
+        if (this.isMuted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        // Soft double-bump buzz
+        const now = this.ctx.currentTime;
+        [180, 140].forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          const startTime = now + idx * 0.12;
+
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(freq, startTime);
+
+          gain.gain.setValueAtTime(0.12, startTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.1);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start(startTime);
+          osc.stop(startTime + 0.11);
+        });
+      }
+
+      playVictory() {
+        if (this.isMuted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        // Grand victory fanfare chords
+        const chords = [
+          { freq: 523.25, time: 0.0 }, // C5
+          { freq: 659.25, time: 0.1 }, // E5
+          { freq: 783.99, time: 0.2 }, // G5
+          { freq: 1046.50, time: 0.35, dur: 0.55 } // C6
+        ];
+
+        chords.forEach(c => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          const now = this.ctx.currentTime + c.time;
+          const duration = c.dur || 0.28;
+
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(c.freq, now);
+
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start(now);
+          osc.stop(now + duration + 0.02);
+        });
+      }
+    }
+
+    const sound = new SoundSynth();
+
+    let currentLevel = 1;
+    const levelConfigs = {
+      1: { pairs: 4, name: "ง่าย (Level 1)", gridClass: "grid-cols-2 sm:grid-cols-4 max-w-xl" },
+      2: { pairs: 6, name: "ปานกลาง (Level 2)", gridClass: "grid-cols-3 sm:grid-cols-4 max-w-2xl" },
+      3: { pairs: 8, name: "ท้าทาย (Level 3)", gridClass: "grid-cols-4 sm:grid-cols-4 max-w-3xl" }
+    };
+
+    let cards = [];
+    let flippedCards = [];
+    let matchedPairsCount = 0;
+    let flipCount = 0;
+    let isLocked = false;
+    let timerInterval = null;
+    let secondsElapsed = 0;
+    let gameStarted = false;
+
+    function startTimer() {
+      if (timerInterval) clearInterval(timerInterval);
+      secondsElapsed = 0;
+      updateTimerDisplay();
+      timerInterval = setInterval(() => {
+        secondsElapsed++;
+        updateTimerDisplay();
+        updateStarRating();
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+    }
+
+    function formatTime(totalSeconds) {
+      const mins = Math.floor(totalSeconds / 60);
+      const secs = totalSeconds % 60;
+      return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    function updateTimerDisplay() {
+      document.getElementById('timerDisplay').textContent = formatTime(secondsElapsed);
+    }
+
+    function calculateStars() {
+      const config = levelConfigs[currentLevel];
+      const minMoves = config.pairs; // absolute theoretical best
+      
+      // Star scoring formula tailored for young Grade 1 learners
+      // 3 stars: very efficient (within 1.7x pairs flips)
+      // 2 stars: moderate (within 2.5x pairs flips)
+      // 1 star: completed
+      const threeStarLimit = Math.round(config.pairs * 1.7);
+      const twoStarLimit = Math.round(config.pairs * 2.6);
+
+      if (flipCount <= threeStarLimit && secondsElapsed <= config.pairs * 12) {
+        return 3;
+      } else if (flipCount <= twoStarLimit && secondsElapsed <= config.pairs * 20) {
+        return 2;
+      } else {
+        return 1;
+      }
+    }
+
+    function updateStarRating() {
+      const stars = calculateStars();
+      const container = document.getElementById('starContainer');
+      let starHtml = '';
+      for (let i = 1; i <= 3; i++) {
+        starHtml += i <= stars ? '<span>⭐</span>' : '<span class="opacity-25 grayscale">⭐</span>';
+      }
+      container.innerHTML = starHtml;
+      return stars;
+    }
+
+    function setupCardsForLevel(level) {
+      const config = levelConfigs[level];
+      const selectedConcepts = CS_CONCEPTS.slice(0, config.pairs);
+      
+      // Create pairs with unique card instance identifiers
+      const deck = [];
+      selectedConcepts.forEach((concept) => {
+        deck.push({ ...concept, uniqueId: concept.id + "_A" });
+        deck.push({ ...concept, uniqueId: concept.id + "_B" });
+      });
+
+      // Fisher-Yates modern shuffle algorithm
+      for (let i = deck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+      }
+
+      return deck;
+    }
+
+    function renderBoard() {
+      const board = document.getElementById('gameBoard');
+      const config = levelConfigs[currentLevel];
+
+      // Reset Board attributes & class
+      board.className = `w-full flex-grow grid gap-2 sm:gap-3.5 justify-center items-stretch py-2 ${config.gridClass}`;
+      board.innerHTML = '';
+
+      cards.forEach((card, index) => {
+        const cardWrapper = document.createElement('div');
+        cardWrapper.className = 'perspective-1000 w-full aspect-[4/5] min-h-[95px] sm:min-h-[140px]';
+        cardWrapper.setAttribute('data-index', index);
+
+        cardWrapper.innerHTML = `
+          <div class="card-inner w-full h-full" id="card-${index}" onclick="handleCardClick(${index})">
+            <!-- Back Face (Unflipped) -->
+            <div class="card-face card-back p-2 select-none group">
+              <div class="w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-xl sm:text-2xl shadow-inner group-hover:scale-110 transition-transform">
+                🤖
+              </div>
+              <div class="text-[10px] sm:text-xs font-bold tracking-wider mt-1 text-indigo-100/90 flex items-center gap-1">
+                <span>&lt;/&gt;</span> CS ป.1
+              </div>
+            </div>
+
+            <!-- Front Face (Concept Content) -->
+            <div class="card-face card-front p-2 sm:p-3 select-none flex flex-col justify-between">
+              <div class="text-[9px] sm:text-[11px] font-bold text-indigo-600/80 bg-indigo-50 px-2 py-0.5 rounded-full self-center">
+                ${card.badge}
+              </div>
+              <div class="text-3xl sm:text-5xl my-auto transform transition-transform group-hover:scale-110 drop-shadow-sm">
+                ${card.emoji}
+              </div>
+              <div class="w-full">
+                <div class="text-xs sm:text-sm font-bold text-slate-800 leading-tight">
+                  ${card.thai}
+                </div>
+                <div class="text-[9px] sm:text-[10px] font-semibold text-slate-400 mt-0.5">
+                  ${card.en}
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        board.appendChild(cardWrapper);
+      });
+
+      // Update analytics header labels
+      document.getElementById('totalPairs').textContent = config.pairs;
+      document.getElementById('pairsFound').textContent = matchedPairsCount;
+      document.getElementById('flipCount').textContent = flipCount;
+      updateStarRating();
+    }
+
+    function handleCardClick(index) {
+      if (isLocked) return;
+
+      // Ensure audio context is unlocked by first user click
+      sound.init();
+
+      if (!gameStarted) {
+        gameStarted = true;
+        startTimer();
+      }
+
+      const cardEl = document.getElementById(`card-${index}`);
+      
+      // Ignore if card is already flipped or matched
+      if (cardEl.classList.contains('is-flipped') || cardEl.classList.contains('is-matched')) {
+        return;
+      }
+
+      // Flip the card
+      sound.playFlip();
+      cardEl.classList.add('is-flipped');
+      flippedCards.push({ index, data: cards[index], element: cardEl });
+
+      // If one card flipped, wait for the next
+      if (flippedCards.length === 1) {
+        return;
+      }
+
+      // Two cards are flipped: increment flip counter
+      flipCount++;
+      document.getElementById('flipCount').textContent = flipCount;
+      updateStarRating();
+
+      isLocked = true;
+      const [first, second] = flippedCards;
+
+      if (first.data.id === second.data.id) {
+        // MATCH FOUND!
+        setTimeout(() => {
+          sound.playMatch();
+          first.element.classList.add('is-matched');
+          second.element.classList.add('is-matched');
+          
+          first.element.querySelector('.card-front').classList.add('matched-border');
+          second.element.querySelector('.card-front').classList.add('matched-border');
+
+          matchedPairsCount++;
+          document.getElementById('pairsFound').textContent = matchedPairsCount;
+          updateStarRating();
+
+          flippedCards = [];
+          isLocked = false;
+
+          // Check Level Victory Condition
+          if (matchedPairsCount === levelConfigs[currentLevel].pairs) {
+            handleVictory();
+          }
+        }, 400);
+
+      } else {
+        // MISMATCH!
+        setTimeout(() => {
+          sound.playMismatch();
+          first.element.classList.add('shake');
+          second.element.classList.add('shake');
+
+          setTimeout(() => {
+            first.element.classList.remove('is-flipped', 'shake');
+            second.element.classList.remove('is-flipped', 'shake');
+            flippedCards = [];
+            isLocked = false;
+          }, 600);
+        }, 500);
+      }
+    }
+
+    function handleVictory() {
+      stopTimer();
+      sound.playVictory();
+
+      // Trigger Confetti Blast
+      if (typeof confetti === 'function') {
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+        setTimeout(() => {
+          confetti({
+            particleCount: 50,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0 }
+          });
+          confetti({
+            particleCount: 50,
+            angle: 120,
+            spread: 55,
+            origin: { x: 1 }
+          });
+        }, 300);
+      }
+
+      const stars = calculateStars();
+      let starHtml = '';
+      for (let i = 1; i <= 3; i++) {
+        starHtml += i <= stars ? '<span>⭐</span>' : '<span class="opacity-25 grayscale">⭐</span>';
+      }
+
+      // Populate victory modal stats
+      document.getElementById('modalStars').innerHTML = starHtml;
+      document.getElementById('modalTime').textContent = formatTime(secondsElapsed);
+      document.getElementById('modalFlips').textContent = `${flipCount} ครั้ง`;
+      document.getElementById('victorySubtitle').textContent = `คุณผ่านด่าน ${levelConfigs[currentLevel].name} สำเร็จ! เก่งสุดๆ ไปเลย!`;
+
+      // Next level button display
+      const nextBtn = document.getElementById('nextLevelBtn');
+      if (currentLevel < 3) {
+        nextBtn.textContent = '🌟 ด่านต่อไป →';
+        nextBtn.classList.remove('hidden');
+      } else {
+        nextBtn.textContent = '🏆 เล่นอีกครั้ง';
+      }
+
+      // Display Modal with animation
+      const modal = document.getElementById('victoryModal');
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+      modal.querySelector('div').classList.remove('scale-90');
+      modal.querySelector('div').classList.add('scale-100');
+    }
+
+    function closeVictoryModal() {
+      const modal = document.getElementById('victoryModal');
+      modal.classList.add('opacity-0', 'pointer-events-none');
+      modal.querySelector('div').classList.remove('scale-100');
+      modal.querySelector('div').classList.add('scale-90');
+    }
+
+    function restartLevelFromModal() {
+      closeVictoryModal();
+      resetGame();
+    }
+
+    function nextLevelFromModal() {
+      closeVictoryModal();
+      if (currentLevel < 3) {
+        selectLevel(currentLevel + 1);
+      } else {
+        selectLevel(1);
+      }
+    }
+
+    function selectLevel(lvl) {
+      currentLevel = lvl;
+
+      // Update Tab Buttons UI
+      document.querySelectorAll('.lvl-btn').forEach((btn, idx) => {
+        if (idx + 1 === lvl) {
+          btn.className = "lvl-btn px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all duration-200 bg-white text-indigo-700 shadow-sm";
+        } else {
+          btn.className = "lvl-btn px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold text-slate-600 hover:text-indigo-600 transition-all duration-200";
+        }
+      });
+
+      resetGame();
+    }
+
+    function toggleAudio() {
+      sound.isMuted = !sound.isMuted;
+      const btn = document.getElementById('soundToggle');
+      if (sound.isMuted) {
+        btn.innerHTML = '🔇';
+        btn.classList.add('opacity-60');
+      } else {
+        btn.innerHTML = '🔊';
+        btn.classList.remove('opacity-60');
+        sound.playFlip();
+      }
+    }
+
+    function resetGame() {
+      stopTimer();
+      secondsElapsed = 0;
+      flipCount = 0;
+      matchedPairsCount = 0;
+      flippedCards = [];
+      isLocked = false;
+      gameStarted = false;
+
+      updateTimerDisplay();
+      cards = setupCardsForLevel(currentLevel);
+      renderBoard();
+    }
+
+    // Start on window load
+    window.onload = function() {
+      cards = setupCardsForLevel(currentLevel);
+      renderBoard();
+    };
+  </script>
+</body>
+</html>
